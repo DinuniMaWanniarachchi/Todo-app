@@ -51,7 +51,7 @@ export const TodoForm: React.FC<TodoFormProps> = ({ onAdd }) => {
       <CardContent className="space-y-4">
         <div>
           <Input
-            placeholder="Todo title *"
+            placeholder="Todo title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
           />
