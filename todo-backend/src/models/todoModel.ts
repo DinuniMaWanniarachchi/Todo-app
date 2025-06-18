@@ -7,6 +7,8 @@ export type Todo = {
   completed: boolean;
 };
 
+export type TodoUpdate = Partial<Pick<Todo, 'title' | 'description' | 'completed'>>;
+
 // Get all todos
 export const getAllTodos = async (): Promise<Todo[]> => {
   const res = await pool.query('SELECT * FROM todos ORDER BY id ASC');
@@ -28,20 +30,35 @@ export const createTodo = async (title: string, description?: string): Promise<T
   return res.rows[0];
 };
 
-// Update todo
-export const updateTodo = async (
-  id: number,
-  title: string,
-  description: string,
-  completed: boolean
-): Promise<Todo> => {
-  const res = await pool.query(
-    `UPDATE todos 
-     SET title = $1, description = $2, completed = $3 
-     WHERE id = $4 
-     RETURNING *`,
-    [title, description, completed, id]
-  );
+// Update todo (partial update)
+export const updateTodo = async (id: number, updates: TodoUpdate): Promise<Todo> => {
+  const fields = [];
+  const values = [];
+  let idx = 1;
+
+  if (updates.title !== undefined) {
+    fields.push(`title = $${idx++}`);
+    values.push(updates.title);
+  }
+
+  if (updates.description !== undefined) {
+    fields.push(`description = $${idx++}`);
+    values.push(updates.description);
+  }
+
+  if (updates.completed !== undefined) {
+    fields.push(`completed = $${idx++}`);
+    values.push(updates.completed);
+  }
+
+  if (fields.length === 0) {
+    throw new Error('No fields to update');
+  }
+
+  values.push(id);
+  const query = `UPDATE todos SET ${fields.join(', ')} WHERE id = $${idx} RETURNING *`;
+
+  const res = await pool.query(query, values);
   return res.rows[0];
 };
 

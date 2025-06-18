@@ -1,107 +1,76 @@
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { TodoForm } from '@/components/todo-form';
-import { TodoList } from '@/components/todo-list';
-import type { Todo, TodoFormData } from '@/types/todo';
+// src/App.tsx
+import { useState, useEffect } from "react";
+import axios from "axios";
+import { TodoList } from "@/components/todo-list";
+import { TodoForm } from "@/components/todo-form";
+import type { Todo, TodoFormData } from "@/types/todo";
 
-type FilterType = 'all' | 'active' | 'completed';
+const API_BASE = "http://localhost:5000/api/todos";
 
-function App() {
+export default function App() {
   const [todos, setTodos] = useState<Todo[]>([]);
-  const [filter, setFilter] = useState<FilterType>('all');
+  const [loading, setLoading] = useState(false);
 
-  const addTodo = (todoData: TodoFormData) => {
-    const newTodo: Todo = {
-      ...todoData,
-      id: Date.now().toString(),
-      createdAt: new Date(),
-    };
-    setTodos(prev => [newTodo, ...prev]);
-  };
-
-  const updateTodo = (id: string, updates: Partial<Todo>) => {
-    setTodos(prev =>
-      prev.map(todo =>
-        todo.id === id ? { ...todo, ...updates } : todo
-      )
-    );
-  };
-
-  const deleteTodo = (id: string) => {
-    setTodos(prev => prev.filter(todo => todo.id !== id));
-  };
-
-  const filteredTodos = todos.filter(todo => {
-    switch (filter) {
-      case 'active':
-        return !todo.completed;
-      case 'completed':
-        return todo.completed;
-      default:
-        return true;
+  // Fetch all todos from backend
+  const fetchTodos = async () => {
+    setLoading(true);
+    try {
+      const res = await axios.get<Todo[]>(API_BASE);
+      setTodos(res.data);
+    } catch (err) {
+      console.error("Failed to fetch todos", err);
+    } finally {
+      setLoading(false);
     }
-  });
+  };
 
-  const filterButtons: { key: FilterType; label: string }[] = [
-    { key: 'all', label: 'All' },
-    { key: 'active', label: 'Active' },
-    { key: 'completed', label: 'Completed' },
-  ];
+  useEffect(() => {
+    fetchTodos();
+  }, []);
+
+  // Add new todo
+  const addTodo = async (todoData: TodoFormData) => {
+    try {
+      await axios.post(API_BASE, todoData);
+      await fetchTodos();
+    } catch (err) {
+      console.error("Failed to add todo", err);
+    }
+  };
+
+  // Update todo by id
+  const updateTodo = async (id: string, updates: Partial<Todo>) => {
+    try {
+      await axios.put(`${API_BASE}/${id}`, updates);
+      await fetchTodos();
+    } catch (err) {
+      console.error("Failed to update todo", err);
+    }
+  };
+
+  // Delete todo by id
+  const deleteTodo = async (id: string) => {
+    try {
+      await axios.delete(`${API_BASE}/${id}`);
+      await fetchTodos();
+    } catch (err) {
+      console.error("Failed to delete todo", err);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-100">
       <div className="container mx-auto px-4 py-10 max-w-2xl">
+        <h1 className="text-center text-4xl font-bold mb-8">Todo App</h1>
 
-        {/* Header Section */}
-        <div className="text-center mb-8 bg-white rounded-xl p-6 shadow-sm">
-          <h1 className="text-4xl font-bold mb-2 text-primary">📋 Todo App</h1>
-          <p className="text-muted-foreground">
-            Stay organized and productive with your personal todo list.
-          </p>
-        </div>
-
-        {/* Todo Form */}
         <TodoForm onAdd={addTodo} />
 
-        {/* Filter Buttons */}
-        {todos.length > 0 && (
-          <div className="flex gap-2 justify-center mb-6 bg-white p-3 rounded-lg shadow-sm">
-            {filterButtons.map(({ key, label }) => {
-              const count = todos.filter(todo => {
-                switch (key) {
-                  case 'active':
-                    return !todo.completed;
-                  case 'completed':
-                    return todo.completed;
-                  default:
-                    return true;
-                }
-              }).length;
-
-              return (
-                <Button
-                  key={key}
-                  variant={filter === key ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setFilter(key)}
-                >
-                  {label}
-                  {key !== 'all' && count > 0 && ` (${count})`}
-                </Button>
-              );
-            })}
-          </div>
+        {loading ? (
+          <p className="text-center text-muted-foreground">Loading todos...</p>
+        ) : (
+          <TodoList todos={todos} onUpdate={updateTodo} onDelete={deleteTodo} />
         )}
-
-        {/* Todo List */}
-        <TodoList
-          todos={filteredTodos}
-          onUpdate={updateTodo}
-          onDelete={deleteTodo}
-        />
       </div>
     </div>
   );
 }
-
-export default App;
